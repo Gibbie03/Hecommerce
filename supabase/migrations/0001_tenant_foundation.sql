@@ -1,7 +1,10 @@
--- Reference template — not yet run against a real Supabase project.
--- Illustrates the tenant/RLS pattern described in docs/DATABASE_SECURITY.md.
--- Revisit before actual use: naming, additional roles, and indexes should be
--- adapted to the real schema once the product design is settled.
+-- Historical reference only — superseded by 0002_auth_shim.sql and
+-- 0003_icommerce_schema.sql, which implement the actual Icommerce
+-- business-identity schema. This file modeled a different, more generic
+-- multi-tenant marketplace (with orders/payments) that the product pivoted
+-- away from; it is intentionally excluded from scripts/db-migrate.sh and
+-- was never applied to a database. Left in place only to illustrate the
+-- tenant/RLS pattern referenced by docs/DATABASE_SECURITY.md.
 
 -- ============================================================
 -- Tenants and membership
