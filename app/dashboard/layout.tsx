@@ -15,8 +15,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-paper">
-      <header className="flex items-center justify-between border-b border-line px-6 py-4">
-        <div className="flex items-center gap-3">
+      <header className="flex flex-wrap items-center justify-between gap-y-2 border-b border-line px-6 py-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Logo size={20} className="text-sm" />
           <span className="text-muted">·</span>
           <span className="text-sm text-ink">{business.name}</span>
@@ -24,7 +24,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
         <div className="flex items-center gap-4">
           {business.status === "published" && (
-            <Link href={`/${business.slug}`} className="text-sm text-forest hover:underline" target="_blank">
+            <Link
+              href={`/${business.slug}`}
+              className="whitespace-nowrap text-sm text-forest hover:underline"
+              target="_blank"
+            >
               View site ↗
             </Link>
           )}

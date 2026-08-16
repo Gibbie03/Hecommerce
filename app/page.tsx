@@ -21,15 +21,17 @@ const STEPS = [
 export default function LandingPage() {
   return (
     <main className="min-h-screen bg-paper">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Logo size={24} />
-        <nav className="flex items-center gap-3">
+      <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-6">
+        <Logo size={24} className="shrink-0" />
+        <nav className="flex shrink-0 items-center gap-3">
           <ButtonLink href="/onboarding" variant="ghost" size="md">
             Sign in
           </ButtonLink>
-          <ButtonLink href="/onboarding" variant="primary" size="md">
-            Make my business AI-ready
-          </ButtonLink>
+          <span className="hidden sm:block">
+            <ButtonLink href="/onboarding" variant="primary" size="md">
+              Make my business AI-ready
+            </ButtonLink>
+          </span>
         </nav>
       </header>
 
@@ -41,11 +43,11 @@ export default function LandingPage() {
           Icommerce turns your business information into a trusted business identity that AI agents can
           understand, discover, and eventually buy from.
         </p>
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-          <ButtonLink href="/onboarding" variant="primary" size="lg">
+        <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-center">
+          <ButtonLink href="/onboarding" variant="primary" size="lg" className="w-full sm:w-auto">
             Make my business AI-ready
           </ButtonLink>
-          <ButtonLink href="/oooh-lala-shawarma" variant="secondary" size="lg">
+          <ButtonLink href="/oooh-lala-shawarma" variant="secondary" size="lg" className="w-full sm:w-auto">
             See how it works
           </ButtonLink>
         </div>
