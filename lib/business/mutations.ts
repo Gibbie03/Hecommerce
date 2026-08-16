@@ -191,7 +191,7 @@ export async function updateBusiness(
          returning *`,
         values,
       );
-      return one(rows, "Business not found");
+      return one(rows, "Business not found", NotFoundError);
     });
   } catch (err) {
     if (isRlsViolation(err)) throw new AuthorizationError("You can't edit this business.");
@@ -225,7 +225,7 @@ export async function confirmImportedFields(userId: string, businessId: string):
          returning *`,
         [businessId],
       );
-      return one(rows, "Business not found");
+      return one(rows, "Business not found", NotFoundError);
     });
   } catch (err) {
     if (isRlsViolation(err)) throw new AuthorizationError("You can't edit this business.");
@@ -233,12 +233,29 @@ export async function confirmImportedFields(userId: string, businessId: string):
   }
 }
 
+export class VerificationRequiredError extends Error {}
+
 export async function publishBusiness(userId: string, businessId: string): Promise<Business> {
   return runAsUser(userId, async (client) => {
     const { rows: businessRows } = await client.query<Business>(`select * from businesses where id = $1`, [
       businessId,
     ]);
-    const currentBusiness = one(businessRows, "Business not found");
+    const currentBusiness = one(businessRows, "Business not found", NotFoundError);
+
+    // Verification is the whole reason a business's claims are meant to be
+    // trustworthy to AI agents (per the build spec's own "Trust Model" and
+    // Claim -> Verify -> Review -> Publish order) — publishing a business
+    // that never even attempted verification would let anyone stand up a
+    // public, agent-discoverable listing under any name (e.g. impersonating
+    // a real company) with nothing to distinguish it from a legitimate one
+    // except a field most consumers of the data won't think to check.
+    // `pending` (e.g. manual review requested but not yet resolved) is
+    // still allowed through, since that's an intentional, supported path.
+    if (currentBusiness.verification_status === "unverified") {
+      throw new VerificationRequiredError(
+        "Request verification before publishing — an unverified business can't go live.",
+      );
+    }
 
     const { rows: products } = await client.query<Product>(`select * from products where business_id = $1`, [
       businessId,
@@ -253,7 +270,7 @@ export async function publishBusiness(userId: string, businessId: string): Promi
       `update businesses set status = 'published', ai_ready_score = $1, updated_at = now() where id = $2 returning *`,
       [readiness.percent, businessId],
     );
-    return one(rows, "You can't publish this business.");
+    return one(rows, "You can't publish this business.", AuthorizationError);
   });
 }
 
@@ -357,7 +374,7 @@ export async function updateProduct(
         `update products set ${setClauses.join(", ")}, updated_at = now() where id = $${idIdx} returning *`,
         values,
       );
-      return one(rows, "Product not found or not authorized");
+      return one(rows, "Product not found or not authorized", NotFoundError);
     });
   } catch (err) {
     if (isRlsViolation(err)) throw new AuthorizationError("You can't edit this product.");

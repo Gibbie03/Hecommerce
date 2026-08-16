@@ -1,3 +1,4 @@
+import { lookup as dnsLookup } from "node:dns/promises";
 import * as cheerio from "cheerio";
 import type { SourceType } from "@/lib/types";
 
@@ -24,28 +25,65 @@ const FETCH_TIMEOUT_MS = 8000;
 const MAX_BYTES = 3 * 1024 * 1024;
 
 /**
- * Best-effort SSRF guard: rejects the obvious private/internal hostname
- * shapes before this server makes an outbound request to a URL a merchant
- * typed in. Not exhaustive (doesn't resolve DNS to catch rebinding) — a
- * production deployment fetching arbitrary user-supplied URLs should route
- * this through an egress-restricted fetcher, per SECURITY_RULES.md §9/§11.
+ * Rejects loopback/private/link-local/reserved IPv4 and IPv6 addresses.
+ * Used both on the literal hostname (catches "http://127.0.0.1/...") and on
+ * every address the hostname actually resolves to (catches a hostname that
+ * doesn't *look* internal but has a DNS record pointing at one — the
+ * hostname-string check alone doesn't see through that).
  */
-function assertPubliclyRoutable(url: URL) {
+function isPrivateOrReservedIp(ip: string): boolean {
+  const v4 = ip.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (v4) {
+    const octets = v4.slice(1, 5).map(Number);
+    if (octets.some((o) => o > 255)) return true; // malformed — reject rather than risk misparsing
+    const [a, b] = octets as [number, number, number, number];
+    if (a === 127) return true; // loopback
+    if (a === 10) return true; // private
+    if (a === 172 && b >= 16 && b <= 31) return true; // private
+    if (a === 192 && b === 168) return true; // private
+    if (a === 169 && b === 254) return true; // link-local, incl. cloud metadata (169.254.169.254)
+    if (a === 0) return true; // "this" network
+    if (a >= 224) return true; // multicast + reserved
+    return false;
+  }
+
+  const lower = ip.toLowerCase();
+  if (lower === "::1" || lower === "::") return true; // loopback / unspecified
+  if (lower.startsWith("::ffff:")) return isPrivateOrReservedIp(lower.slice(7)); // IPv4-mapped
+  const firstGroup = lower.split(":")[0] ?? "";
+  if (/^fe[89ab][0-9a-f]$/.test(firstGroup)) return true; // fe80::/10 link-local
+  if (/^f[cd][0-9a-f]{2}$/.test(firstGroup)) return true; // fc00::/7 unique local
+  return false;
+}
+
+/**
+ * SSRF guard: rejects private/internal targets before this server makes an
+ * outbound request to a URL a merchant typed in. Checks the literal
+ * hostname AND every address it resolves to (a hostname that doesn't look
+ * internal can still have a DNS record pointing at one — proven during a
+ * security audit by resolving a normal-looking hostname straight at
+ * 127.0.0.1 and reading back an internal-only service's content). Not
+ * proof against DNS rebinding (the address could change between this check
+ * and fetch()'s own resolution) — a production deployment should route
+ * this through an egress-restricted fetcher pinned to a checked IP, per
+ * SECURITY_RULES.md §9/§11.
+ */
+async function assertPubliclyRoutable(url: URL): Promise<void> {
   if (!["http:", "https:"].includes(url.protocol)) {
     throw new Error("Only http/https URLs are supported");
   }
   const host = url.hostname.toLowerCase();
-  const blocked =
-    host === "localhost" ||
-    host === "0.0.0.0" ||
-    host.endsWith(".local") ||
-    host === "::1" ||
-    /^127\./.test(host) ||
-    /^10\./.test(host) ||
-    /^192\.168\./.test(host) ||
-    /^169\.254\./.test(host) ||
-    /^172\.(1[6-9]|2\d|3[0-1])\./.test(host);
-  if (blocked) {
+  if (host === "localhost" || host === "0.0.0.0" || host.endsWith(".local") || isPrivateOrReservedIp(host)) {
+    throw new Error("That URL can't be imported");
+  }
+
+  let addresses;
+  try {
+    addresses = await dnsLookup(host, { all: true, verbatim: true });
+  } catch {
+    throw new Error("Couldn't resolve that host");
+  }
+  if (addresses.length === 0 || addresses.some((a) => isPrivateOrReservedIp(a.address))) {
     throw new Error("That URL can't be imported");
   }
 }
@@ -67,7 +105,7 @@ function parsePrice(raw: unknown): number | undefined {
 
 export async function scrapeWebsite(inputUrl: string): Promise<ScrapedBusiness> {
   const url = new URL(inputUrl.trim());
-  assertPubliclyRoutable(url);
+  await assertPubliclyRoutable(url);
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -76,9 +114,17 @@ export async function scrapeWebsite(inputUrl: string): Promise<ScrapedBusiness> 
   try {
     const res = await fetch(url.toString(), {
       signal: controller.signal,
-      redirect: "follow",
+      // Manual, not "follow": a redirect target isn't covered by the
+      // publicly-routable check above, and following it automatically was
+      // a proven SSRF bypass (an allowed public host 302-ing to an
+      // internal address). Reject redirects outright instead of chasing
+      // and re-validating each hop.
+      redirect: "manual",
       headers: { "User-Agent": "IcommerceBot/0.1 (+https://icommerce.ng)" },
     });
+    if (res.status >= 300 && res.status < 400) {
+      throw new Error("That site redirects, which isn't supported for import yet.");
+    }
     if (!res.ok) throw new Error(`Site responded with ${res.status}`);
 
     const reader = res.body?.getReader();

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import { confirmImportedFields, AuthorizationError } from "@/lib/business/mutations";
+import { confirmImportedFields, AuthorizationError, NotFoundError } from "@/lib/business/mutations";
 
 export async function POST(_req: Request, { params }: { params: Promise<{ businessId: string }> }) {
   const session = await getSession();
@@ -12,6 +12,7 @@ export async function POST(_req: Request, { params }: { params: Promise<{ busine
     return NextResponse.json({ ok: true, business });
   } catch (err) {
     if (err instanceof AuthorizationError) return NextResponse.json({ error: err.message }, { status: 403 });
+    if (err instanceof NotFoundError) return NextResponse.json({ error: err.message }, { status: 404 });
     throw err;
   }
 }

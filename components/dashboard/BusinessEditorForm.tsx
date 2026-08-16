@@ -31,6 +31,7 @@ export function BusinessEditorForm({ business, logoUrl }: { business: Business; 
   const [logo, setLogo] = useState(logoUrl);
   const [status, setStatus] = useState<"idle" | "saving" | "publishing">("idle");
   const [message, setMessage] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const provenance = business.field_provenance ?? {};
   const hasImported = Object.values(provenance).some((f) => f?.source === "imported");
@@ -78,11 +79,15 @@ export function BusinessEditorForm({ business, logoUrl }: { business: Business; 
 
   async function handlePublish() {
     setStatus("publishing");
+    setPublishError(null);
     const res = await fetch(`/api/business/${business.id}/publish`, { method: "POST" });
     setStatus("idle");
     if (res.ok) {
       router.push("/dashboard");
       router.refresh();
+    } else {
+      const data = await res.json().catch(() => null);
+      setPublishError(data?.error ?? "Something went wrong.");
     }
   }
 
@@ -231,14 +236,17 @@ export function BusinessEditorForm({ business, logoUrl }: { business: Business; 
       </div>
 
       {business.status === "draft" && (
-        <Card className="flex items-center justify-between border-forest/30 bg-verified-bg">
-          <div>
-            <p className="font-medium text-ink">Ready to go live?</p>
-            <p className="text-sm text-muted">Publishing makes your business site and AI data public.</p>
+        <Card className="border-forest/30 bg-verified-bg">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium text-ink">Ready to go live?</p>
+              <p className="text-sm text-muted">Publishing makes your business site and AI data public.</p>
+            </div>
+            <Button type="button" onClick={handlePublish} disabled={status !== "idle"}>
+              {status === "publishing" ? "Publishing…" : "Publish business"}
+            </Button>
           </div>
-          <Button type="button" onClick={handlePublish} disabled={status !== "idle"}>
-            {status === "publishing" ? "Publishing…" : "Publish business"}
-          </Button>
+          {publishError && <p className="mt-3 text-sm text-danger">{publishError}</p>}
         </Card>
       )}
     </form>
