@@ -8,7 +8,7 @@ MIGRATIONS_DIR="$(dirname "$0")/../supabase/migrations"
 
 # 0001 is historical reference only (superseded product shape) and is
 # intentionally not applied — see the note at the top of that file.
-for name in 0002_auth_shim.sql 0003_icommerce_schema.sql 0004_view_counter.sql 0005_business_created_by.sql 0006_fix_recursive_helpers.sql 0007_fix_claim_policy_recursion.sql 0008_fix_membership_returning.sql 0009_verification_status_insert_guard.sql 0010_phone_auth.sql; do
+for name in 0002_auth_shim.sql 0003_icommerce_schema.sql 0004_view_counter.sql 0005_business_created_by.sql 0006_fix_recursive_helpers.sql 0007_fix_claim_policy_recursion.sql 0008_fix_membership_returning.sql 0009_verification_status_insert_guard.sql 0010_phone_auth.sql 0011_magic_link_auth.sql; do
   f="$MIGRATIONS_DIR/$name"
   echo "Applying $f"
   su postgres -c "psql -d icommerce -v ON_ERROR_STOP=1 -f $f"

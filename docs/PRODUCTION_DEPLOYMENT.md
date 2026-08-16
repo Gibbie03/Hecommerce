@@ -86,15 +86,17 @@ don't, for a real launch).
 ## 3. Supabase Auth
 
 There's little to configure here, on purpose. This app doesn't use
-Supabase's own GoTrue sign-in flows (magic links, its email templates, its
-phone provider integration) — it keeps its existing hand-rolled email/phone
-+ 6-digit-code flow (`lib/auth/otp.ts`), sending through Resend/Twilio
-directly, and only uses Supabase's **Admin API** to create the resulting
-`auth.users` row once a code is confirmed (see
-`docs/SUPABASE_MIGRATION.md`). That's deliberate: it preserves the exact
-existing sign-in UX rather than risking a mismatch against Supabase's own
-OTP flow, which couldn't be verified without live access during
-development.
+Supabase's own GoTrue sign-in flows (its magic links, its email templates,
+its phone provider integration) — it keeps its own hand-rolled flows
+instead: phone sign-in stays 6-digit-code (`lib/auth/otp.ts`), and email
+sign-in is this app's own magic link (`lib/auth/magicLink.ts`, table
+`magic_links` from migration `0011`) — both sending through Resend/Twilio
+directly, and both only using Supabase's **Admin API** to create the
+resulting `auth.users` row on first sign-in (see
+`docs/SUPABASE_MIGRATION.md`). That's deliberate: it preserves one
+consistent, already-audited session/RLS model (`lib/auth/session.ts`,
+`auth.uid()`) rather than risking a mismatch against Supabase's own OTP
+flow, which couldn't be verified without live access during development.
 
 Nothing to change under Authentication → Providers/Templates for this
 app to work. Leave the defaults.
@@ -120,6 +122,13 @@ since serverless functions have no persistent/writable `public/` directory.
    `Icommerce <onboarding@yourdomain.com>` — the placeholder
    `onboarding@icommerce.ng` in `.env.example` won't send unless you
    actually own and verify that domain.
+
+Without this, email sign-in (magic link) and business email verification
+both degrade to the same honest "not configured" state as everything
+else in this app — the link/code is logged server-side instead of faked
+as delivered, never silently pretending to have sent. `APP_URL` (step 6)
+must also be your real production origin by this point, since it's
+embedded directly as the clickable URL inside every magic-link email.
 
 **Twilio** (not in your original 9 steps, but this app already ships phone
 sign-in and phone business-verification, both built on Twilio — so it's
@@ -149,7 +158,7 @@ each to Production, Preview, or both as noted.
 | `TWILIO_ACCOUNT_SID` | ✓ | ✓ | From step 5, if using phone |
 | `TWILIO_AUTH_TOKEN` | ✓ | ✓ | From step 5, if using phone |
 | `TWILIO_FROM_NUMBER` | ✓ | ✓ | From step 5, if using phone |
-| `APP_URL` | ✓ (your real domain) | leave unset | Preview builds fall back to Vercel's auto-injected `VERCEL_URL` automatically (see `app/[slug]/page.tsx`) — don't set `APP_URL` for Preview or every preview deploy would report the same stale URL |
+| `APP_URL` | ✓ (your real domain) | leave unset | Preview builds fall back to Vercel's auto-injected `VERCEL_URL` automatically (see `app/[slug]/page.tsx`) — don't set `APP_URL` for Preview or every preview deploy would report the same stale URL. Also the origin embedded in every magic-link sign-in email's clickable URL — a wrong value here sends users to a link that won't resolve |
 
 Using one Supabase project for both Preview and Production is the simplest
 setup and what this runbook assumes; use a second project + a different
@@ -186,8 +195,9 @@ against the real deployment.
 
 Manual checklist (needs real accounts/data, so it isn't scripted):
 
-- [ ] Sign in with a real email — confirm the code actually arrives (Resend
-      configured correctly).
+- [ ] Sign in with a real email — confirm the magic-link email actually
+      arrives (Resend configured correctly) and clicking it signs you in
+      and lands on the right destination.
 - [ ] Sign in with a real phone number — confirm the SMS actually arrives
       (Twilio configured correctly), if you set it up in step 5.
 - [ ] Full flow: create/import a business → verify (email or manual) →

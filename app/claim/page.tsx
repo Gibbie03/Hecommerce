@@ -9,6 +9,7 @@ import { Logo } from "@/components/ui/Logo";
 import { loadDraft, clearDraft, type OnboardingDraft } from "@/lib/onboarding/draft";
 
 type Channel = "email" | "phone";
+type Step = "target" | "code" | "waiting";
 
 export default function ClaimPage() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function ClaimPage() {
   const [channel, setChannel] = useState<Channel>("email");
   const [value, setValue] = useState("");
   const [code, setCode] = useState("");
-  const [step, setStep] = useState<"target" | "code">("target");
+  const [step, setStep] = useState<Step>("target");
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [error, setError] = useState<string | null>(null);
   const [delivered, setDelivered] = useState(true);
@@ -33,14 +34,34 @@ export default function ClaimPage() {
     setError(null);
   }
 
-  async function requestCode(e: React.FormEvent) {
-    e.preventDefault();
+  async function requestEmailMagicLink() {
+    setStatus("loading");
+    setError(null);
+    const res = await fetch("/api/auth/magic-link/request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: value, continuation: draft }),
+    });
+    setStatus("idle");
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error ?? "Something went wrong.");
+      return;
+    }
+    // Business creation/claiming for the email channel happens server-side
+    // in the magic-link callback once the user clicks the link — the
+    // draft was just sent above as the link's continuation, so it isn't
+    // cleared from this tab until that succeeds elsewhere.
+    setStep("waiting");
+  }
+
+  async function requestPhoneCode() {
     setStatus("loading");
     setError(null);
     const res = await fetch("/api/auth/request-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ method: channel, value }),
+      body: JSON.stringify({ method: "phone", value }),
     });
     const data = await res.json();
     setStatus("idle");
@@ -50,6 +71,15 @@ export default function ClaimPage() {
     }
     setDelivered(Boolean(data.delivered));
     setStep("code");
+  }
+
+  function handleTargetSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (channel === "email") {
+      void requestEmailMagicLink();
+    } else {
+      void requestPhoneCode();
+    }
   }
 
   async function confirmAndClaim(e: React.FormEvent) {
@@ -115,9 +145,9 @@ export default function ClaimPage() {
             ))}
           </div>
 
-          <form onSubmit={requestCode} className="mt-4 space-y-4">
+          <form onSubmit={handleTargetSubmit} className="mt-4 space-y-4">
             {channel === "email" ? (
-              <Field label="Email address">
+              <Field label="Email address" hint="We'll email you a secure sign-in link.">
                 <Input type="email" required value={value} onChange={(e) => setValue(e.target.value)} />
               </Field>
             ) : (
@@ -126,21 +156,52 @@ export default function ClaimPage() {
             {error && <p className="text-sm text-danger">{error}</p>}
             <Button
               type="submit"
-              disabled={status === "loading" || (channel === "phone" && !value)}
+              disabled={status === "loading" || !value}
               className="w-full"
             >
-              {status === "loading" ? "Sending…" : "Send me a code"}
+              {status === "loading"
+                ? "Sending…"
+                : channel === "email"
+                  ? "Send me a magic link"
+                  : "Send me a code"}
             </Button>
           </form>
         </>
+      )}
+
+      {step === "waiting" && (
+        <div className="mt-8 space-y-4">
+          <p className="rounded-xl bg-paper-dim px-4 py-3 text-sm text-ink">
+            Check your email. If the address is eligible, we've sent you a secure sign-in link.
+          </p>
+          <Button
+            variant="secondary"
+            className="w-full"
+            disabled={status === "loading"}
+            onClick={() => void requestEmailMagicLink()}
+          >
+            {status === "loading" ? "Sending…" : "Resend link"}
+          </Button>
+          {error && <p className="text-sm text-danger">{error}</p>}
+          <button
+            type="button"
+            className="w-full text-sm text-muted underline"
+            onClick={() => {
+              setStep("target");
+              setError(null);
+            }}
+          >
+            Use a different email
+          </button>
+        </div>
       )}
 
       {step === "code" && (
         <form onSubmit={confirmAndClaim} className="mt-8 space-y-4">
           {!delivered && (
             <p className="rounded-xl bg-amber-bg px-3 py-2 text-xs text-amber">
-              We couldn&apos;t confirm the {channel === "email" ? "email" : "SMS"} was delivered — it may not be
-              configured, or sending may have failed. Check the server logs for your code, or try again shortly.
+              We couldn&apos;t confirm the SMS was delivered — it may not be configured, or sending may have
+              failed. Check the server logs for your code, or try again shortly.
             </p>
           )}
           <Field label={`6-digit code sent to ${value}`}>
@@ -158,7 +219,7 @@ export default function ClaimPage() {
             {status === "loading" ? "Confirming…" : "Confirm and claim my business"}
           </Button>
           <button type="button" className="text-sm text-muted underline" onClick={() => setStep("target")}>
-            Use a different {channel === "email" ? "email" : "phone number"}
+            Use a different phone number
           </button>
         </form>
       )}

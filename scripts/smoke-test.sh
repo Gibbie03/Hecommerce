@@ -78,5 +78,62 @@ else
 fi
 
 echo
+echo "Magic-link email auth:"
+check_status "sign-in page loads" GET "/signin" '^200$'
+check_status "magic-link request rejects malformed email" POST "/api/auth/magic-link/request" '^400$' '{"email":"not-an-email"}'
+
+# Account enumeration: an existing-shaped email and a made-up one must get
+# a byte-for-byte identical response — distinct X-Forwarded-For per call so
+# this check doesn't collide with the IP rate limiter below.
+resp_a=$(curl -sS -m 15 -X POST "$URL/api/auth/magic-link/request" -H "Content-Type: application/json" \
+  -H "X-Forwarded-For: 10.77.1.1" -d '{"email":"smoke-test-magiclink-a@example.com"}')
+resp_b=$(curl -sS -m 15 -X POST "$URL/api/auth/magic-link/request" -H "Content-Type: application/json" \
+  -H "X-Forwarded-For: 10.77.1.2" -d '{"email":"smoke-test-magiclink-b@example.com"}')
+if [ "$resp_a" = "$resp_b" ] && [ "$resp_a" = '{"ok":true}' ]; then
+  echo "PASS  magic-link request response is identical regardless of account existence"
+  pass=$((pass + 1))
+else
+  echo "FAIL  magic-link request responses differ (account enumeration risk): a=$resp_a b=$resp_b"
+  fail=$((fail + 1))
+fi
+
+echo
+echo "Magic-link callback fails safely for bad tokens (no session, no stack trace):"
+missing_loc=$(curl -sS -o /dev/null -m 15 -w "%{redirect_url}" "$URL/auth/email/callback")
+if [[ "$missing_loc" == *"/auth/email/error"* ]]; then
+  echo "PASS  missing token redirects to the error page"
+  pass=$((pass + 1))
+else
+  echo "FAIL  missing token did not redirect to the error page (got: $missing_loc)"
+  fail=$((fail + 1))
+fi
+
+garbage_loc=$(curl -sS -o /dev/null -m 15 -w "%{redirect_url}" \
+  "$URL/auth/email/callback?token=not-a-real-token-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+if [[ "$garbage_loc" == *"/auth/email/error"* ]]; then
+  echo "PASS  invalid token redirects to the error page"
+  pass=$((pass + 1))
+else
+  echo "FAIL  invalid token did not redirect to the error page (got: $garbage_loc)"
+  fail=$((fail + 1))
+fi
+
+echo
+echo "Magic-link rate limiting (5 requests/10min per IP on /api/auth/magic-link/request):"
+last_code=200
+for i in 1 2 3 4 5 6; do
+  last_code=$(curl -sS -o /dev/null -m 15 -w "%{http_code}" -X POST "$URL/api/auth/magic-link/request" \
+    -H "Content-Type: application/json" -H "X-Forwarded-For: 10.77.2.1" \
+    -d '{"email":"smoke-test-magiclink-ratelimit@example.com"}')
+done
+if [ "$last_code" = "429" ]; then
+  echo "PASS  6th request in a burst is rate-limited (429)"
+  pass=$((pass + 1))
+else
+  echo "FAIL  6th request in a burst was not rate-limited (got $last_code)"
+  fail=$((fail + 1))
+fi
+
+echo
 echo "$pass passed, $fail failed"
 [ "$fail" -eq 0 ]

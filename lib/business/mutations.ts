@@ -5,6 +5,7 @@ import { slugify } from "@/lib/format";
 import { computeReadiness } from "@/lib/business/readiness";
 import { sendBusinessVerificationEmail } from "@/lib/email/resend";
 import { sendBusinessVerificationSms } from "@/lib/sms/twilio";
+import type { ClaimDraft } from "@/lib/business/claimSchema";
 import type {
   Business,
   DeliveryInfo,
@@ -18,6 +19,7 @@ import type {
 
 export class AuthorizationError extends Error {}
 export class NotFoundError extends Error {}
+export class InvalidDraftError extends Error {}
 
 function isRlsViolation(err: unknown): boolean {
   return (err as { code?: string })?.code === "42501";
@@ -114,6 +116,50 @@ export async function claimBusiness(userId: string, businessId: string): Promise
     }
     throw err;
   }
+}
+
+/**
+ * Applies a claim/create draft for a now-authenticated user — the single
+ * place that turns a `ClaimDraft` into actual business/product/image rows.
+ * Shared by POST /api/business/claim (the existing OTP flow, where the
+ * client already holds a session when it posts the draft) and the
+ * magic-link callback (lib/auth/magicLink.ts), where the draft was carried
+ * server-side as the link's continuation payload and is applied the
+ * instant the session is established — so both entry points create a
+ * business exactly the same way.
+ */
+export async function applyOnboardingDraft(userId: string, draft: ClaimDraft): Promise<{ businessId: string }> {
+  if (draft.source === "match") {
+    if (!draft.matchedBusinessId) {
+      throw new InvalidDraftError("Missing business to claim.");
+    }
+    await claimBusiness(userId, draft.matchedBusinessId);
+    return { businessId: draft.matchedBusinessId };
+  }
+
+  if (!draft.business) {
+    throw new InvalidDraftError("Missing business details.");
+  }
+
+  const provenance: Provenance = draft.source === "website" ? "imported" : "merchant_provided";
+  const business = await createBusiness(
+    userId,
+    {
+      ...draft.business,
+      email: draft.business.email || undefined,
+      website: draft.business.website || undefined,
+    },
+    provenance,
+  );
+
+  for (const product of draft.products ?? []) {
+    await createProduct(userId, business.id, product, provenance);
+  }
+  for (const [index, url] of (draft.images ?? []).entries()) {
+    await addImageUrl(userId, business.id, url, { isPrimary: index === 0 });
+  }
+
+  return { businessId: business.id };
 }
 
 const EDITABLE_BUSINESS_FIELDS = [

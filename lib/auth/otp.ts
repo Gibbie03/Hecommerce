@@ -101,7 +101,7 @@ export async function confirmLoginCode(
  * keeps inserting into the local auth shim exactly as before — see
  * supabase/migrations/0002_auth_shim.sql and docs/SUPABASE_MIGRATION.md.
  */
-async function createIdentity(channel: LoginChannel, target: string): Promise<LoginIdentity> {
+export async function createIdentity(channel: LoginChannel, target: string): Promise<LoginIdentity> {
   const admin = getSupabaseAdmin();
   if (admin) {
     const { data, error } = await admin.auth.admin.createUser(

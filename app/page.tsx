@@ -24,7 +24,7 @@ export default function LandingPage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-6">
         <Logo size={24} className="shrink-0" />
         <nav className="flex shrink-0 items-center gap-3">
-          <ButtonLink href="/onboarding" variant="ghost" size="md">
+          <ButtonLink href="/signin" variant="ghost" size="md">
             Sign in
           </ButtonLink>
           <span className="hidden sm:block">

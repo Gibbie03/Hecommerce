@@ -36,14 +36,17 @@ in the process:
 ## What actually changed
 
 1. **Database**: run `supabase/migrations/0003_icommerce_schema.sql`
-   through `0009_verification_status_insert_guard.sql` (in that order)
-   against the real project — **not** `0002_auth_shim.sql` (Supabase
-   already provides `auth.users`/`auth.uid()` natively) and **not**
-   `0010_phone_auth.sql` (it `ALTER TABLE auth.users ADD COLUMN phone`,
-   but Supabase's real `auth.users` already has a native `phone` column —
-   running it against a real project would error). `0001` was always
-   historical reference and was never applied anywhere. See
-   `scripts/db-migrate-production.sh`, which encodes this exact list.
+   through `0009_verification_status_insert_guard.sql`, plus
+   `0011_magic_link_auth.sql` (in that order) against the real project —
+   **not** `0002_auth_shim.sql` (Supabase already provides
+   `auth.users`/`auth.uid()` natively) and **not** `0010_phone_auth.sql`
+   (it `ALTER TABLE auth.users ADD COLUMN phone`, but Supabase's real
+   `auth.users` already has a native `phone` column — running it against
+   a real project would error). `0001` was always historical reference
+   and was never applied anywhere. `0011` only creates its own
+   `magic_links` table (no `auth` schema changes), so it's safe to run
+   as-is. See `scripts/db-migrate-production.sh`, which encodes this
+   exact list.
 2. **A dedicated Postgres role.** Supabase's default connection credentials
    are the project-owner `postgres` role, which — like any table owner —
    bypasses RLS entirely. `supabase/production/01_role_and_grants.sql`
@@ -69,10 +72,23 @@ in the process:
 5. **Email/SMS**: no change. `lib/email/resend.ts` and `lib/sms/twilio.ts`
    call their providers' HTTP APIs directly and never depended on which
    Postgres they're paired with.
-6. **`login_codes` table**: kept. It's an app-owned table in the `public`
-   schema (not `auth`), so Supabase has no opinion on it — it's what
-   `lib/auth/otp.ts` uses to track outstanding codes regardless of which
-   environment it's running in.
+6. **`login_codes` table**: app-owned, in the `public` schema (not
+   `auth`), so Supabase has no opinion on it — it's what `lib/auth/otp.ts`
+   uses to track outstanding phone codes. **Known gap, not introduced by
+   this doc's own migration list**: it's defined inside
+   `0002_auth_shim.sql`, which is intentionally skipped against a real
+   Supabase project (see point 1) — so as this repo stands today, that
+   table is never actually created in production, and phone OTP sign-in
+   has nowhere to write against a real Supabase project. If phone
+   sign-in needs to work in production, extract `login_codes`' table
+   definition out of `0002` into its own migration, the same way
+   `magic_links` (point 7) already is.
+7. **`magic_links` table**: added by `0011_magic_link_auth.sql`, also
+   app-owned/`public` schema, no RLS (same rationale as `login_codes` —
+   pre-authentication, server-only, flagged by `scripts/check_rls.sql`
+   by design). Unlike `login_codes`, it lives in its own migration file
+   rather than inside `0002`, so it *is* created in production — see
+   `scripts/db-migrate-production.sh`.
 
 ## The env-var switch
 
