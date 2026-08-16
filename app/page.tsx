@@ -1,4 +1,5 @@
 import { ButtonLink } from "@/components/ui/Button";
+import { Logo } from "@/components/ui/Logo";
 
 const FLOW = ["Your business", "Icommerce", "AI agents", "Customers"];
 
@@ -21,7 +22,7 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-paper">
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <span className="text-lg font-semibold tracking-tight text-ink">Icommerce</span>
+        <Logo size={24} />
         <nav className="flex items-center gap-3">
           <ButtonLink href="/onboarding" variant="ghost" size="md">
             Sign in

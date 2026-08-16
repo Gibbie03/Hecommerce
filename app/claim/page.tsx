@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
+import { Logo } from "@/components/ui/Logo";
 import { loadDraft, clearDraft, type OnboardingDraft } from "@/lib/onboarding/draft";
 
 type Channel = "email" | "phone";
@@ -90,7 +92,7 @@ export default function ClaimPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-md px-6 py-16">
-      <p className="text-sm font-medium text-forest">Icommerce</p>
+      <Logo size={20} />
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Claim {businessLabel}.</h1>
       <p className="mt-2 text-muted">
         We just need a way to reach you to save your progress — no password, and nothing else is required.
@@ -119,18 +121,14 @@ export default function ClaimPage() {
                 <Input type="email" required value={value} onChange={(e) => setValue(e.target.value)} />
               </Field>
             ) : (
-              <Field label="Phone number" hint="International format, e.g. +2348011112222">
-                <Input
-                  type="tel"
-                  required
-                  placeholder="+2348011112222"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                />
-              </Field>
+              <PhoneInput label="Phone number" required value={value} onChange={setValue} />
             )}
             {error && <p className="text-sm text-danger">{error}</p>}
-            <Button type="submit" disabled={status === "loading"} className="w-full">
+            <Button
+              type="submit"
+              disabled={status === "loading" || (channel === "phone" && !value)}
+              className="w-full"
+            >
               {status === "loading" ? "Sending…" : "Send me a code"}
             </Button>
           </form>

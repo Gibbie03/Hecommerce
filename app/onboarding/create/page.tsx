@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, Input, Textarea, Select } from "@/components/ui/Input";
+import { Logo } from "@/components/ui/Logo";
 import { Card } from "@/components/ui/Card";
 import { saveDraft, type DraftProduct } from "@/lib/onboarding/draft";
 import { ORDERED_DAY_KEYS, DAY_LABELS } from "@/lib/business/hours";
@@ -68,7 +69,7 @@ export default function CreateBusinessPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-6 py-16">
-      <p className="text-sm font-medium text-forest">Icommerce</p>
+      <Logo size={20} />
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Let&apos;s create your business site.</h1>
       <p className="mt-2 text-muted">
         You don&apos;t need a website to become AI-ready. We&apos;ll create one for your business.

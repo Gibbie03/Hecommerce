@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth/session";
 import { getBusinessForMember, getMemberProducts, getMemberImages } from "@/lib/business/queries";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Logo } from "@/components/ui/Logo";
 
 function countPieces(business: Awaited<ReturnType<typeof getBusinessForMember>>, productCount: number, imageCount: number) {
   if (!business) return 0;
@@ -47,7 +48,7 @@ export default async function ReviewPage({ params }: { params: Promise<{ busines
 
   return (
     <main className="mx-auto min-h-screen max-w-xl px-6 py-16">
-      <p className="text-sm font-medium text-forest">Icommerce</p>
+      <Logo size={20} />
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">We found your business information.</h1>
       <p className="mt-2 text-muted">
         {pieces} piece{pieces === 1 ? "" : "s"} of information{business.field_provenance && Object.values(business.field_provenance).some((f) => f?.source === "imported") ? ", imported from your website" : ""}.

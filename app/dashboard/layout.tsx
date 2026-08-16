@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import { getActiveBusiness } from "@/lib/business/active";
 import { DesktopSidebar, MobileNav, LogoutButton } from "@/components/dashboard/DashboardNav";
+import { Logo } from "@/components/ui/Logo";
 import { VerificationBadge } from "@/components/ui/VerificationBadge";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -16,7 +17,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="min-h-screen bg-paper">
       <header className="flex items-center justify-between border-b border-line px-6 py-4">
         <div className="flex items-center gap-3">
-          <span className="text-sm font-semibold text-ink">Icommerce</span>
+          <Logo size={20} className="text-sm" />
           <span className="text-muted">·</span>
           <span className="text-sm text-ink">{business.name}</span>
           <VerificationBadge status={business.verification_status} />

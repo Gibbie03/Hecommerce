@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
+import { Logo } from "@/components/ui/Logo";
 
 const PATHS = [
   {
@@ -25,7 +26,7 @@ const PATHS = [
 export default function OnboardingPage() {
   return (
     <main className="mx-auto min-h-screen max-w-2xl px-6 py-16">
-      <p className="text-sm font-medium text-forest">Icommerce</p>
+      <Logo size={20} />
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Tell us about your business.</h1>
       <p className="mt-2 text-muted">Every path here is a legitimate way to get started — pick what fits.</p>
 

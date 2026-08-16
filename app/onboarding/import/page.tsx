@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { Logo } from "@/components/ui/Logo";
 import { Card } from "@/components/ui/Card";
 import type { ScrapedBusiness } from "@/lib/import/scrape";
 import { saveDraft } from "@/lib/onboarding/draft";
@@ -60,7 +61,7 @@ export default function ImportWebsitePage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-xl px-6 py-16">
-      <p className="text-sm font-medium text-forest">Icommerce</p>
+      <Logo size={20} />
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Import my business information.</h1>
       <p className="mt-2 text-muted">Paste your website link and we&apos;ll pull in what&apos;s publicly there.</p>
 

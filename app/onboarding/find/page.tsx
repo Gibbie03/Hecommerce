@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { Logo } from "@/components/ui/Logo";
 import { MatchCard } from "@/components/business/MatchCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { saveDraft } from "@/lib/onboarding/draft";
@@ -33,7 +34,7 @@ export default function FindBusinessPage() {
 
   return (
     <main className="mx-auto min-h-screen max-w-xl px-6 py-16">
-      <p className="text-sm font-medium text-forest">Icommerce</p>
+      <Logo size={20} />
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-ink">Find your existing business.</h1>
       <p className="mt-2 text-muted">Search by business name, phone, or WhatsApp number.</p>
 

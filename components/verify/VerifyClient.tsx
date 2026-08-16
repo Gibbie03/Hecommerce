@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Field, Input } from "@/components/ui/Input";
+import { PhoneInput } from "@/components/ui/PhoneInput";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import type { Business, VerificationRequest } from "@/lib/types";
@@ -181,19 +182,11 @@ export function VerifyClient({
               <Input type="email" required value={targetValue} onChange={(e) => setTargetValue(e.target.value)} />
             </Field>
           ) : (
-            <Field label="Business phone number" hint="International format, e.g. +2348011112222">
-              <Input
-                type="tel"
-                required
-                placeholder="+2348011112222"
-                value={targetValue}
-                onChange={(e) => setTargetValue(e.target.value)}
-              />
-            </Field>
+            <PhoneInput label="Business phone number" required value={targetValue} onChange={setTargetValue} />
           )}
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex gap-3">
-            <Button type="submit" disabled={status === "loading"}>
+            <Button type="submit" disabled={status === "loading" || (activeChannel === "phone" && !targetValue)}>
               {status === "loading" ? "Sending…" : "Send code"}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("picker")}>
