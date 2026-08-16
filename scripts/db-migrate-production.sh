@@ -23,11 +23,11 @@ ROOT="$(dirname "$0")/.."
 MIGRATIONS_DIR="$ROOT/supabase/migrations"
 PROD_DIR="$ROOT/supabase/production"
 
-echo "1/4: app role + default grants"
+echo "1/5: app role + default grants"
 psql "$SUPABASE_ADMIN_DB_URL" -v app_password="$ICOMMERCE_APP_DB_PASSWORD" -v ON_ERROR_STOP=1 \
   -f "$PROD_DIR/01_role_and_grants.sql"
 
-echo "2/4: schema + RLS (0003 through 0009, plus 0011)"
+echo "2/5: schema + RLS (0003 through 0009, plus 0011)"
 for name in 0003_icommerce_schema.sql 0004_view_counter.sql 0005_business_created_by.sql \
   0006_fix_recursive_helpers.sql 0007_fix_claim_policy_recursion.sql \
   0008_fix_membership_returning.sql 0009_verification_status_insert_guard.sql \
@@ -36,16 +36,21 @@ for name in 0003_icommerce_schema.sql 0004_view_counter.sql 0005_business_create
   psql "$SUPABASE_ADMIN_DB_URL" -v ON_ERROR_STOP=1 -f "$MIGRATIONS_DIR/$name"
 done
 
-echo "3/4: storage bucket"
+echo "3/5: storage bucket"
 psql "$SUPABASE_ADMIN_DB_URL" -v ON_ERROR_STOP=1 -f "$PROD_DIR/02_storage_bucket.sql"
 
-echo "4/4: backfill grants"
+echo "4/5: backfill grants"
 psql "$SUPABASE_ADMIN_DB_URL" -v ON_ERROR_STOP=1 -f "$PROD_DIR/03_backfill_grants.sql"
+
+echo "5/5: revoke anon/authenticated access to pre-authentication tables"
+psql "$SUPABASE_ADMIN_DB_URL" -v ON_ERROR_STOP=1 -f "$PROD_DIR/04_restrict_pre_auth_tables.sql"
 
 echo
 echo "Done. Checking every tenant table has RLS enabled with at least one policy:"
 psql "$SUPABASE_ADMIN_DB_URL" -f "$ROOT/scripts/check_rls.sql"
 echo "(magic_links should be listed — it's pre-authentication and intentionally excluded, see its migration file)"
+echo "(RLS-disabled here is now safe: step 5/5 also revoked anon/authenticated"
+echo "table privileges directly, so PostgREST can't reach it regardless of RLS)"
 echo
 echo "NOTE: login_codes is created by 0002_auth_shim.sql, which this script skips"
 echo "(that file also recreates auth.users/auth.uid(), which a real Supabase"
