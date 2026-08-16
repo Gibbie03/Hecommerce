@@ -11,12 +11,12 @@ onboarding/dashboard copy itself; this README covers running it.
 ## Stack
 
 Next.js (App Router, TypeScript) + Tailwind, backed by PostgreSQL with row
-level security as the tenant-isolation boundary. This environment has no
-Docker daemon and can't reach `supabase.com`, so it runs against local
-Postgres with a small `auth` schema shim that mirrors Supabase Auth's
-`auth.uid()` contract — the RLS policies are the same ones that would run
-unmodified against a real hosted Supabase project. See
-[`docs/SUPABASE_MIGRATION.md`](./docs/SUPABASE_MIGRATION.md) for that swap.
+level security as the tenant-isolation boundary. Local dev runs against a
+local Postgres instance with a small `auth` schema shim that mirrors
+Supabase Auth's `auth.uid()` contract; production runs against real hosted
+Supabase (same RLS policies, unmodified — see
+[`docs/SUPABASE_MIGRATION.md`](./docs/SUPABASE_MIGRATION.md)). Deploying to
+Vercel + Supabase: [`docs/PRODUCTION_DEPLOYMENT.md`](./docs/PRODUCTION_DEPLOYMENT.md).
 
 ## Running locally
 
@@ -63,6 +63,8 @@ Written before this build started, and still the operating rules for it:
   pattern actually used in `supabase/migrations/0003_icommerce_schema.sql`.
 - [`docs/SUPABASE_MIGRATION.md`](./docs/SUPABASE_MIGRATION.md) — what
   changes to point this at a real hosted Supabase project.
+- [`docs/PRODUCTION_DEPLOYMENT.md`](./docs/PRODUCTION_DEPLOYMENT.md) — the
+  step-by-step Vercel + Supabase deployment runbook.
 - [`scripts/check_rls.sql`](./scripts/check_rls.sql) — flags any table
   missing RLS; run it after every schema change.
 
@@ -77,12 +79,16 @@ lib/            db/ (pg pool + RLS-aware transaction helper), auth/,
                 business/ (queries, mutations, readiness scoring),
                 ai/ (rule-based AI View + question simulator — no LLM
                 call, so it can't hallucinate facts not in the record),
-                import/ (website scraping), email/, agent/
-supabase/       migrations/, seed.sql
-scripts/        db-setup.sh, db-migrate.sh, db-reset.sh, check_rls.sql
+                import/ (website scraping), email/, sms/, supabase/
+                (service-role client, used only for prod user creation +
+                Storage), agent/
+supabase/       migrations/, seed.sql, production/ (role/grants/bucket SQL
+                for a real hosted project — see docs/PRODUCTION_DEPLOYMENT.md)
+scripts/        db-setup.sh, db-migrate.sh, db-reset.sh, check_rls.sql,
+                db-migrate-production.sh, smoke-test.sh
 ```
 
 Explicitly out of scope for this MVP (shown in the UI as "coming soon,"
-never faked): payments/checkout, WhatsApp/phone verification, Jumia/
-Shopify/Bumpa source sync, review submission, and analytics beyond a view
-counter.
+never faked): payments/checkout, WhatsApp/business-document verification,
+Jumia/Shopify/Bumpa source sync, review submission, and analytics beyond a
+view counter.

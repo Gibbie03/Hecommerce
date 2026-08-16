@@ -42,7 +42,12 @@ export default async function BusinessSitePage({ params }: { params: Promise<{ s
   const imageByProduct = new Map(images.filter((img) => img.product_id).map((img) => [img.product_id, img.url]));
   const open = isOpenNow(business.opening_hours);
 
-  const siteUrl = `${process.env.APP_URL ?? "http://localhost:3000"}/${business.slug}`;
+  // Falls back to Vercel's auto-injected deployment URL so preview builds
+  // get a correct absolute URL in the JSON-LD without needing APP_URL set
+  // per-deploy (preview URLs are dynamic) — see docs/PRODUCTION_DEPLOYMENT.md.
+  const baseUrl =
+    process.env.APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
+  const siteUrl = `${baseUrl}/${business.slug}`;
   const jsonLd = buildLocalBusinessJsonLd(business, products, siteUrl);
 
   return (

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSession } from "@/lib/auth/session";
 import { runAsUser } from "@/lib/db/withAuth";
-import { isAllowedImageType, saveUploadedImage, deleteUploadedFile, MAX_UPLOAD_BYTES } from "@/lib/upload";
+import { isAllowedImageType, saveUploadedImage, MAX_UPLOAD_BYTES } from "@/lib/upload";
 
 const metaSchema = z.object({
   businessId: z.string().uuid(),
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const { businessId, productId, isPrimary } = parsedMeta.data;
   const bytes = Buffer.from(await file.arrayBuffer());
-  const { url, absolutePath } = await saveUploadedImage(businessId, file.type, bytes);
+  const { url, cleanup } = await saveUploadedImage(businessId, file.type, bytes);
 
   try {
     const image = await runAsUser(session.userId, async (client) => {
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ ok: true, image });
   } catch (err: unknown) {
-    await deleteUploadedFile(absolutePath);
+    await cleanup();
     const code = (err as { code?: string })?.code;
     if (code === "42501") {
       return NextResponse.json({ error: "You don't have permission to add images to this business." }, { status: 403 });

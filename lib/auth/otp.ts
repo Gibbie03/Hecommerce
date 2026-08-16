@@ -1,5 +1,6 @@
 import { randomInt, createHash } from "node:crypto";
 import { runAsAnon } from "@/lib/db/withAuth";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const CODE_LENGTH = 6;
 const CODE_TTL_MINUTES = 10;
@@ -57,7 +58,7 @@ export async function confirmLoginCode(
   const codeHash = hashCode(channel, target, code);
   const column = channel; // constrained to the "email" | "phone" union above — never raw user input
 
-  return runAsAnon(async (client) => {
+  const consumed = await runAsAnon(async (client) => {
     const { rows } = await client.query(
       `update login_codes
        set consumed_at = now()
@@ -71,20 +72,50 @@ export async function confirmLoginCode(
        returning id`,
       [target, codeHash],
     );
-
-    if (rows.length === 0) {
-      return null;
-    }
+    if (rows.length === 0) return null;
 
     const existing = await client.query(
       `select id, email, phone from auth.users where ${column} = $1`,
       [target],
     );
-    if (existing.rows.length > 0) {
-      const row = existing.rows[0];
-      return { userId: row.id as string, email: row.email ?? undefined, phone: row.phone ?? undefined };
-    }
+    return { existingRow: existing.rows[0] ?? null };
+  });
 
+  if (!consumed) {
+    return null;
+  }
+  if (consumed.existingRow) {
+    const row = consumed.existingRow;
+    return { userId: row.id as string, email: row.email ?? undefined, phone: row.phone ?? undefined };
+  }
+
+  return createIdentity(channel, target);
+}
+
+/**
+ * Creates a brand-new identity for a first-time sign-in. Against a real
+ * Supabase project (SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY set), this goes
+ * through the Admin API rather than a raw INSERT — auth.users there is
+ * GoTrue-managed, and inserting into it directly bypasses bookkeeping a
+ * production system shouldn't skip. Local dev (no Supabase configured)
+ * keeps inserting into the local auth shim exactly as before — see
+ * supabase/migrations/0002_auth_shim.sql and docs/SUPABASE_MIGRATION.md.
+ */
+async function createIdentity(channel: LoginChannel, target: string): Promise<LoginIdentity> {
+  const admin = getSupabaseAdmin();
+  if (admin) {
+    const { data, error } = await admin.auth.admin.createUser(
+      channel === "email"
+        ? { email: target, email_confirm: true }
+        : { phone: target, phone_confirm: true },
+    );
+    if (error || !data.user) {
+      throw new Error(`Failed to create user: ${error?.message ?? "unknown error"}`);
+    }
+    return channel === "email" ? { userId: data.user.id, email: target } : { userId: data.user.id, phone: target };
+  }
+
+  return runAsAnon(async (client) => {
     const created = await client.query(
       channel === "email"
         ? `insert into auth.users (email) values ($1) returning id`
