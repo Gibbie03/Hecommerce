@@ -12,7 +12,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
 
   const { businessId } = await params;
   const ip = clientIp(req.headers);
-  if (!rateLimit(`verify-email-confirm:${ip}`, 10, 10 * 60 * 1000).ok) {
+  if (!rateLimit(`verify-phone-confirm:${ip}`, 10, 10 * 60 * 1000).ok) {
     return NextResponse.json({ error: "Too many attempts. Try again shortly." }, { status: 429 });
   }
 
@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
     return NextResponse.json({ error: "Enter the 6-digit code." }, { status: 400 });
   }
 
-  const verified = await confirmChannelVerification(session.userId, businessId, "email", parsed.data.code);
+  const verified = await confirmChannelVerification(session.userId, businessId, "phone", parsed.data.code);
   if (!verified) {
     return NextResponse.json({ error: "That code is invalid or expired." }, { status: 401 });
   }

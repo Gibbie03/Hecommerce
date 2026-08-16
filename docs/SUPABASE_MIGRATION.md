@@ -25,10 +25,11 @@ not a rewrite.
    images to `public/uploads/{business_id}/...` on local disk. Swap this
    for a Supabase Storage bucket (`business-images`, public read, tenant-
    prefixed paths per `docs/DATABASE_SECURITY.md`).
-5. **Email**: no change — `lib/email/resend.ts` already calls Resend's
-   HTTP API directly and doesn't depend on which Postgres it's paired with.
+5. **Email/SMS**: no change — `lib/email/resend.ts` and `lib/sms/twilio.ts`
+   already call their providers' HTTP APIs directly and don't depend on
+   which Postgres they're paired with.
 6. Drop the `login_codes` table and its usage once `signInWithOtp` replaces
-   the hand-rolled flow.
+   the hand-rolled flow (Supabase Auth supports phone OTP natively too).
 
 Everything else — query shape, RLS policies, the business/product/
 verification data model — carries over unchanged.

@@ -14,11 +14,12 @@ function getSecretKey() {
 
 export interface Session {
   userId: string;
-  email: string;
+  email?: string;
+  phone?: string;
 }
 
 export async function createSession(session: Session): Promise<void> {
-  const token = await new SignJWT({ email: session.email })
+  const token = await new SignJWT({ email: session.email, phone: session.phone })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(session.userId)
     .setIssuedAt()
@@ -42,10 +43,14 @@ export async function getSession(): Promise<Session | null> {
 
   try {
     const { payload } = await jwtVerify(token, getSecretKey());
-    if (typeof payload.sub !== "string" || typeof payload.email !== "string") {
+    if (typeof payload.sub !== "string") {
       return null;
     }
-    return { userId: payload.sub, email: payload.email };
+    return {
+      userId: payload.sub,
+      email: typeof payload.email === "string" ? payload.email : undefined,
+      phone: typeof payload.phone === "string" ? payload.phone : undefined,
+    };
   } catch {
     return null;
   }

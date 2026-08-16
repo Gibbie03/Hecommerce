@@ -5,7 +5,9 @@ import { getBusinessForMember } from "@/lib/business/queries";
 import { requestChannelVerification, AuthorizationError } from "@/lib/business/mutations";
 import { rateLimit, clientIp } from "@/lib/rateLimit";
 
-const bodySchema = z.object({ email: z.string().trim().email().max(320) });
+const bodySchema = z.object({
+  phone: z.string().trim().regex(/^\+[1-9]\d{6,14}$/, "Use international format, e.g. +2348011112222"),
+});
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ businessId: string }> }) {
   const session = await getSession();
@@ -13,13 +15,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
 
   const { businessId } = await params;
   const ip = clientIp(req.headers);
-  if (!rateLimit(`verify-email-send:${ip}`, 5, 10 * 60 * 1000).ok) {
+  if (!rateLimit(`verify-phone-send:${ip}`, 5, 10 * 60 * 1000).ok) {
     return NextResponse.json({ error: "Too many requests. Try again shortly." }, { status: 429 });
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
-    return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
+    return NextResponse.json({ error: "Enter a valid phone number in international format." }, { status: 400 });
   }
 
   const business = await getBusinessForMember(businessId, session.userId);
@@ -29,8 +31,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ bus
     const { delivered } = await requestChannelVerification(
       session.userId,
       businessId,
-      "email",
-      parsed.data.email,
+      "phone",
+      parsed.data.phone,
       business.name,
     );
     return NextResponse.json({ ok: true, delivered });

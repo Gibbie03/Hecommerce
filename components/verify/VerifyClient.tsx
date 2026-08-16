@@ -8,9 +8,15 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import type { Business, VerificationRequest } from "@/lib/types";
 
+type Channel = "email" | "phone";
+
+const CHANNELS: { key: Channel; label: string; icon: string; blurb: string }[] = [
+  { key: "email", label: "Email", icon: "✉️", blurb: "Verify by email" },
+  { key: "phone", label: "Phone", icon: "📞", blurb: "Verify by SMS" },
+];
+
 const STUBBED_METHODS = [
   { key: "whatsapp", label: "WhatsApp", icon: "💬" },
-  { key: "phone", label: "Phone", icon: "📞" },
   { key: "document", label: "Business documents", icon: "📄" },
 ] as const;
 
@@ -26,21 +32,30 @@ export function VerifyClient({
   const [manualPending, setManualPending] = useState(
     initialRequests.some((r) => r.method === "manual" && r.status === "pending"),
   );
-  const [mode, setMode] = useState<"picker" | "email-target" | "email-code">("picker");
-  const [targetEmail, setTargetEmail] = useState(business.email ?? "");
+  const [mode, setMode] = useState<"picker" | "channel-target" | "channel-code">("picker");
+  const [activeChannel, setActiveChannel] = useState<Channel>("email");
+  const [targetValue, setTargetValue] = useState("");
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "loading">("idle");
   const [error, setError] = useState<string | null>(null);
-  const [emailConfigured, setEmailConfigured] = useState(true);
+  const [delivered, setDelivered] = useState(true);
 
-  async function sendEmailCode(e: React.FormEvent) {
+  function openChannel(channel: Channel) {
+    setActiveChannel(channel);
+    setTargetValue(channel === "email" ? (business.email ?? "") : (business.whatsapp ?? business.phone ?? ""));
+    setError(null);
+    setMode("channel-target");
+  }
+
+  async function sendChannelCode(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
     setError(null);
-    const res = await fetch(`/api/business/${business.id}/verify/email/send`, {
+    const body = activeChannel === "email" ? { email: targetValue } : { phone: targetValue };
+    const res = await fetch(`/api/business/${business.id}/verify/${activeChannel}/send`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: targetEmail }),
+      body: JSON.stringify(body),
     });
     const data = await res.json();
     setStatus("idle");
@@ -48,15 +63,15 @@ export function VerifyClient({
       setError(data.error ?? "Something went wrong.");
       return;
     }
-    setEmailConfigured(Boolean(data.delivered));
-    setMode("email-code");
+    setDelivered(Boolean(data.delivered));
+    setMode("channel-code");
   }
 
-  async function confirmEmailCode(e: React.FormEvent) {
+  async function confirmChannelCode(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
     setError(null);
-    const res = await fetch(`/api/business/${business.id}/verify/email/confirm`, {
+    const res = await fetch(`/api/business/${business.id}/verify/${activeChannel}/confirm`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
@@ -104,17 +119,20 @@ export function VerifyClient({
     <div className="mt-8 space-y-6">
       {mode === "picker" && (
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => setMode("email-target")}
-            className="flex w-full items-center gap-3 rounded-2xl border border-line bg-white p-4 text-left transition-colors hover:border-forest/50"
-          >
-            <span className="text-xl">✉️</span>
-            <div>
-              <p className="font-medium text-ink">Email</p>
-              <p className="text-sm text-muted">Verify by email</p>
-            </div>
-          </button>
+          {CHANNELS.map((channel) => (
+            <button
+              key={channel.key}
+              type="button"
+              onClick={() => openChannel(channel.key)}
+              className="flex w-full items-center gap-3 rounded-2xl border border-line bg-white p-4 text-left transition-colors hover:border-forest/50"
+            >
+              <span className="text-xl">{channel.icon}</span>
+              <div>
+                <p className="font-medium text-ink">{channel.label}</p>
+                <p className="text-sm text-muted">{channel.blurb}</p>
+              </div>
+            </button>
+          ))}
 
           <div className="flex w-full items-center justify-between gap-3 rounded-2xl border border-line bg-white p-4">
             <div className="flex items-center gap-3">
@@ -156,16 +174,23 @@ export function VerifyClient({
         </div>
       )}
 
-      {mode === "email-target" && (
-        <form onSubmit={sendEmailCode} className="space-y-4">
-          <Field label="Business email" hint="We'll send a code here to confirm you control it.">
-            <Input
-              type="email"
-              required
-              value={targetEmail}
-              onChange={(e) => setTargetEmail(e.target.value)}
-            />
-          </Field>
+      {mode === "channel-target" && (
+        <form onSubmit={sendChannelCode} className="space-y-4">
+          {activeChannel === "email" ? (
+            <Field label="Business email" hint="We'll send a code here to confirm you control it.">
+              <Input type="email" required value={targetValue} onChange={(e) => setTargetValue(e.target.value)} />
+            </Field>
+          ) : (
+            <Field label="Business phone number" hint="International format, e.g. +2348011112222">
+              <Input
+                type="tel"
+                required
+                placeholder="+2348011112222"
+                value={targetValue}
+                onChange={(e) => setTargetValue(e.target.value)}
+              />
+            </Field>
+          )}
           {error && <p className="text-sm text-danger">{error}</p>}
           <div className="flex gap-3">
             <Button type="submit" disabled={status === "loading"}>
@@ -178,14 +203,15 @@ export function VerifyClient({
         </form>
       )}
 
-      {mode === "email-code" && (
-        <form onSubmit={confirmEmailCode} className="space-y-4">
-          {!emailConfigured && (
+      {mode === "channel-code" && (
+        <form onSubmit={confirmChannelCode} className="space-y-4">
+          {!delivered && (
             <p className="rounded-xl bg-amber-bg px-3 py-2 text-xs text-amber">
-              Email sending isn&apos;t configured in this environment yet — check the server logs for your code.
+              {activeChannel === "email" ? "Email sending" : "SMS sending"} isn&apos;t configured in this
+              environment yet — check the server logs for your code.
             </p>
           )}
-          <Field label={`6-digit code sent to ${targetEmail}`}>
+          <Field label={`6-digit code sent to ${targetValue}`}>
             <Input
               required
               inputMode="numeric"

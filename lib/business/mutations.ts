@@ -4,6 +4,7 @@ import { one } from "@/lib/db/util";
 import { slugify } from "@/lib/format";
 import { computeReadiness } from "@/lib/business/readiness";
 import { sendBusinessVerificationEmail } from "@/lib/email/resend";
+import { sendBusinessVerificationSms } from "@/lib/sms/twilio";
 import type {
   Business,
   DeliveryInfo,
@@ -472,10 +473,13 @@ export async function requestManualVerification(userId: string, businessId: stri
   }
 }
 
-export async function requestEmailVerification(
+export type ChannelVerificationMethod = "email" | "phone";
+
+export async function requestChannelVerification(
   userId: string,
   businessId: string,
-  targetEmail: string,
+  method: ChannelVerificationMethod,
+  target: string,
   businessName: string,
 ): Promise<{ delivered: boolean }> {
   const code = generateCode();
@@ -486,26 +490,30 @@ export async function requestEmailVerification(
     await runAsUser(userId, async (client) => {
       await client.query(
         `insert into verification_requests (business_id, method, status, code_hash, target, expires_at, requested_by)
-         values ($1, 'email', 'pending', $2, $3, $4, $5)`,
-        [businessId, codeHash, targetEmail, expiresAt, userId],
+         values ($1, $2, 'pending', $3, $4, $5, $6)`,
+        [businessId, method, codeHash, target, expiresAt, userId],
       );
-      await client.query(
-        `update businesses set verification_status = 'pending', verification_method = 'email' where id = $1`,
-        [businessId],
-      );
+      await client.query(`update businesses set verification_status = 'pending', verification_method = $2 where id = $1`, [
+        businessId,
+        method,
+      ]);
     });
   } catch (err) {
     if (isRlsViolation(err)) throw new AuthorizationError("You can't request verification for this business.");
     throw err;
   }
 
-  const result = await sendBusinessVerificationEmail(targetEmail, code, businessName);
+  const result =
+    method === "email"
+      ? await sendBusinessVerificationEmail(target, code, businessName)
+      : await sendBusinessVerificationSms(target, code, businessName);
   return { delivered: result.sent };
 }
 
-export async function confirmEmailVerification(
+export async function confirmChannelVerification(
   userId: string,
   businessId: string,
+  method: ChannelVerificationMethod,
   code: string,
 ): Promise<boolean> {
   const codeHash = hashVerificationCode(businessId, code);
@@ -516,25 +524,25 @@ export async function confirmEmailVerification(
        set status = 'verified', verified_at = now()
        where id = (
          select id from verification_requests
-         where business_id = $1 and method = 'email' and code_hash = $2
+         where business_id = $1 and method = $2 and code_hash = $3
            and status = 'pending' and expires_at > now()
          order by created_at desc
          limit 1
        )
        returning id`,
-      [businessId, codeHash],
+      [businessId, method, codeHash],
     );
 
     if (rows.length === 0) return false;
 
     await client.query(
-      `update businesses set verification_status = 'verified', verification_method = 'email', verified_at = now() where id = $1`,
-      [businessId],
+      `update businesses set verification_status = 'verified', verification_method = $2, verified_at = now() where id = $1`,
+      [businessId, method],
     );
     return true;
   });
 }
 
 export function unimplementedVerificationMethodMessage(method: VerificationMethod): string {
-  return `${method === "whatsapp" ? "WhatsApp" : "Phone"} verification requires provider setup and isn't available yet. Use email or manual review for now.`;
+  return `${method === "whatsapp" ? "WhatsApp" : "Business document"} verification requires provider setup and isn't available yet. Use email, phone, or manual review for now.`;
 }

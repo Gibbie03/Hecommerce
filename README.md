@@ -40,10 +40,12 @@ npm run dev
 To start over: `bash scripts/db-reset.sh` (drops, recreates, migrates, and
 reseeds in one step).
 
-Email verification (login codes and business-email verification) calls
-Resend's API when `RESEND_API_KEY` is set; without it, codes are logged to
-the server console instead of failing, so the flow is still testable.
-WhatsApp and phone verification are visibly marked "requires provider
+Sign-in and verification codes go out over email (Resend, `RESEND_API_KEY`)
+or phone/SMS (Twilio, `TWILIO_ACCOUNT_SID`/`TWILIO_AUTH_TOKEN`/
+`TWILIO_FROM_NUMBER`) — pick either at the `/claim` step. Without the
+matching credentials set, codes are logged to the server console instead of
+failing, so both flows stay testable with nothing configured. WhatsApp and
+business-document verification are still visibly marked "requires provider
 setup" in the UI rather than faked — see `docs/SECURITY_ARCHITECTURE.md`
 in the earlier planning docs for why unbuilt scope is flagged, not hidden.
 
