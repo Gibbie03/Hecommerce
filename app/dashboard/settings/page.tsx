@@ -25,7 +25,7 @@ export default async function SettingsPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Account</h2>
         <Card>
           <p className="text-sm text-muted">Signed in as</p>
-          <p className="font-medium text-ink">{session.email}</p>
+          <p className="font-medium text-ink">{session.email ?? session.phone}</p>
         </Card>
       </section>
 

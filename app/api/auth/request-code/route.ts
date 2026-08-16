@@ -34,8 +34,16 @@ export async function POST(req: NextRequest) {
 
   // Always the same success response regardless of whether the account was
   // already registered — avoids account-enumeration per SECURITY_RULES.md §2.
+  // `delivered` must reflect whether the code actually went out — not just
+  // whether a provider was configured. A misconfigured or failing provider
+  // (wrong credentials, an outage, insufficient balance) still needs to
+  // show the "check server logs" fallback, or a real user is stranded with
+  // no way to ever see their code. Found via a production-config audit: this
+  // used to read `result.sent || result.reason !== "not_configured"`, which
+  // reported delivered:true for a send that failed for any reason other
+  // than "not configured" at all.
   return NextResponse.json({
     ok: true,
-    delivered: result.sent || result.reason !== "not_configured",
+    delivered: result.sent,
   });
 }

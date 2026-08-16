@@ -207,8 +207,8 @@ export function VerifyClient({
         <form onSubmit={confirmChannelCode} className="space-y-4">
           {!delivered && (
             <p className="rounded-xl bg-amber-bg px-3 py-2 text-xs text-amber">
-              {activeChannel === "email" ? "Email sending" : "SMS sending"} isn&apos;t configured in this
-              environment yet — check the server logs for your code.
+              We couldn&apos;t confirm the {activeChannel === "email" ? "email" : "SMS"} was delivered — it may not
+              be configured, or sending may have failed. Check the server logs for your code, or try again shortly.
             </p>
           )}
           <Field label={`6-digit code sent to ${targetValue}`}>

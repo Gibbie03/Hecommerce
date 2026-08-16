@@ -141,8 +141,8 @@ export default function ClaimPage() {
         <form onSubmit={confirmAndClaim} className="mt-8 space-y-4">
           {!delivered && (
             <p className="rounded-xl bg-amber-bg px-3 py-2 text-xs text-amber">
-              {channel === "email" ? "Email sending" : "SMS sending"} isn&apos;t configured in this environment yet
-              — check the server logs for your code.
+              We couldn&apos;t confirm the {channel === "email" ? "email" : "SMS"} was delivered — it may not be
+              configured, or sending may have failed. Check the server logs for your code, or try again shortly.
             </p>
           )}
           <Field label={`6-digit code sent to ${value}`}>
