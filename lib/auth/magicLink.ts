@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from "node:crypto";
 import { runAsAnon } from "@/lib/db/withAuth";
-import { createIdentity, type LoginIdentity } from "@/lib/auth/otp";
+import { findOrCreateIdentity, type LoginIdentity } from "@/lib/auth/otp";
 import type { ClaimDraft } from "@/lib/business/claimSchema";
 
 const TOKEN_BYTES = 32; // 256 bits of entropy — infeasible to guess or brute force.
@@ -74,18 +74,12 @@ export async function consumeMagicLink(token: string): Promise<MagicLinkResult |
        returning email, continuation`,
       [tokenHash],
     );
-    if (rows.length === 0) return null;
-
-    const { email, continuation } = rows[0]!;
-    const existing = await client.query(`select id, email from auth.users where email = $1`, [email]);
-    return { email, continuation: continuation ?? null, existingRow: existing.rows[0] ?? null };
+    return rows[0] ?? null;
   });
 
   if (!consumed) return null;
 
-  const identity: LoginIdentity = consumed.existingRow
-    ? { userId: consumed.existingRow.id as string, email: consumed.existingRow.email ?? undefined }
-    : await createIdentity("email", consumed.email);
+  const identity: LoginIdentity = await findOrCreateIdentity("email", consumed.email);
 
-  return { identity, continuation: consumed.continuation };
+  return { identity, continuation: consumed.continuation ?? null };
 }
