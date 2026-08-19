@@ -187,10 +187,10 @@ export async function getMemberRoster(businessId: string, userId: string): Promi
 export async function searchPublishedBusinesses(query?: string): Promise<Business[]> {
   return runAsAnon(async (client) => {
     if (!query) {
-      const { rows } = await client.query<Business[]>(
+      const { rows } = await client.query<Business>(
         `select * from businesses where status = 'published' order by created_at desc limit 20`,
       );
-      return rows as unknown as Business[];
+      return rows;
     }
     const like = `%${query.trim()}%`;
     const { rows } = await client.query<Business>(
