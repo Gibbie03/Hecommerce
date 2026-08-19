@@ -24,6 +24,9 @@ export default function LandingPage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-6">
         <Logo size={24} className="shrink-0" />
         <nav className="flex shrink-0 items-center gap-3">
+          <ButtonLink href="/businesses" variant="ghost" size="md">
+            Discover businesses
+          </ButtonLink>
           <ButtonLink href="/signin" variant="ghost" size="md">
             Sign in
           </ButtonLink>
@@ -47,8 +50,8 @@ export default function LandingPage() {
           <ButtonLink href="/onboarding" variant="primary" size="lg" className="w-full sm:w-auto">
             Make my business AI-ready
           </ButtonLink>
-          <ButtonLink href="/oooh-lala-shawarma" variant="secondary" size="lg" className="w-full sm:w-auto">
-            See how it works
+          <ButtonLink href="/businesses" variant="secondary" size="lg" className="w-full sm:w-auto">
+            Discover businesses
           </ButtonLink>
         </div>
       </section>
@@ -85,7 +88,10 @@ export default function LandingPage() {
       </section>
 
       <footer className="border-t border-line px-6 py-8 text-center text-sm text-muted">
-        Icommerce · Make your business readable and tradable with AI agents.
+        Icommerce · Make your business readable and tradable with AI agents. · {" "}
+        <a href="/businesses" className="font-medium text-ink hover:underline">
+          Browse businesses
+        </a>
       </footer>
     </main>
   );
