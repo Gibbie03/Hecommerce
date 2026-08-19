@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   getPublishedBusinessBySlug,
   getPublishedProducts,
@@ -14,14 +15,34 @@ import { Badge } from "@/components/ui/Badge";
 import { isOpenNow, DAY_LABELS, ORDERED_DAY_KEYS } from "@/lib/business/hours";
 import { formatRelativeTime } from "@/lib/format";
 import { buildLocalBusinessJsonLd, safeJsonLd } from "@/lib/seo/jsonld";
+import { absoluteUrl } from "@/lib/seo/site";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const business = await getPublishedBusinessBySlug(slug);
   if (!business) return {};
+
+  const title = `${business.name} | Icommerce`;
+  const description = business.description ?? `${business.name} on Icommerce.`;
+  const url = absoluteUrl(`/${business.slug}`);
+
   return {
-    title: `${business.name} | Icommerce`,
-    description: business.description ?? `${business.name} on Icommerce.`,
+    title,
+    description,
+    alternates: { canonical: url },
+    robots: { index: true, follow: true },
+    openGraph: {
+      type: "website",
+      title,
+      description,
+      url,
+      siteName: "Icommerce",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
   };
 }
 
@@ -42,12 +63,7 @@ export default async function BusinessSitePage({ params }: { params: Promise<{ s
   const imageByProduct = new Map(images.filter((img) => img.product_id).map((img) => [img.product_id, img.url]));
   const open = isOpenNow(business.opening_hours);
 
-  // Falls back to Vercel's auto-injected deployment URL so preview builds
-  // get a correct absolute URL in the JSON-LD without needing APP_URL set
-  // per-deploy (preview URLs are dynamic) — see docs/PRODUCTION_DEPLOYMENT.md.
-  const baseUrl =
-    process.env.APP_URL ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000");
-  const siteUrl = `${baseUrl}/${business.slug}`;
+  const siteUrl = absoluteUrl(`/${business.slug}`);
   const jsonLd = buildLocalBusinessJsonLd(business, products, siteUrl);
 
   return (
@@ -195,6 +211,12 @@ export default async function BusinessSitePage({ params }: { params: Promise<{ s
           <Badge tone="neutral">Prices provided by merchant</Badge>
           <Badge tone="neutral">Information recently updated</Badge>
         </section>
+
+        <nav className="mt-8 border-t border-line pt-6 text-sm" aria-label="Business discovery">
+          <Link href="/businesses" className="font-medium text-ink hover:underline">
+            Discover more businesses on Icommerce →
+          </Link>
+        </nav>
       </div>
     </main>
   );
