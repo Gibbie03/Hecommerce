@@ -187,10 +187,10 @@ export async function getMemberRoster(businessId: string, userId: string): Promi
 export async function searchPublishedBusinesses(query?: string): Promise<Business[]> {
   return runAsAnon(async (client) => {
     if (!query) {
-      const { rows } = await client.query<Business>(
+      const { rows } = await client.query<Business[]>(
         `select * from businesses where status = 'published' order by created_at desc limit 20`,
       );
-      return rows;
+      return rows as unknown as Business[];
     }
     const like = `%${query.trim()}%`;
     const { rows } = await client.query<Business>(
@@ -200,6 +200,16 @@ export async function searchPublishedBusinesses(query?: string): Promise<Busines
        order by created_at desc
        limit 20`,
       [like],
+    );
+    return rows;
+  });
+}
+
+/** All published businesses for machine-readable discovery feeds. */
+export async function listPublishedBusinesses(): Promise<Business[]> {
+  return runAsAnon(async (client) => {
+    const { rows } = await client.query<Business>(
+      `select * from businesses where status = 'published' order by created_at desc`,
     );
     return rows;
   });
