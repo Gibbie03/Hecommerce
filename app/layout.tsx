@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     "Icommerce turns your business information into a trusted business identity that AI agents can understand, discover, and eventually buy from.",
   alternates: { canonical: getSiteUrl() },
   robots: { index: true, follow: true },
+    verification: {
+    google: "-mwv6lE_4xBQZq6_WH7_fB7R9yLpSlcLLBst4DSoP0o",
+  },
   openGraph: {
     type: "website",
     title: "Icommerce — Make your business readable to AI",
